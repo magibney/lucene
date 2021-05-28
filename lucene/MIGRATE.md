@@ -1,5 +1,41 @@
 # Apache Lucene Migration Guide
 
+## NativeUnixDirectory removed and replaced by DirectIODirectory (LUCENE-8982)
+
+Java 11 supports to use Direct IO without native wrappers from Java code.
+NativeUnixDirectory in the misc module was therefore removed and replaced
+by DirectIODirectory. To use it, you need a JVM and operating system that
+supports Direct IO.
+
+## BM25Similarity.setDiscountOverlaps and LegacyBM25Similarity.setDiscountOverlaps methods removed (LUCENE-9646)
+
+The discount discountOverlaps parameter for both BM25Similarity and LegacyBM25Similarity
+is now set by the constructor of those classes.
+
+## Packages in misc module are renamed (LUCENE-9600)
+
+Following package names in misc module are renamed.
+
+- o.a.l.document is renamed to o.a.l.misc.document
+- o.a.l.index is renamed to o.a.l.misc.index
+- o.a.l.search is renamed to o.a.l.misc.search
+- o.a.l.store is renamed to o.a.l.misc.store
+- o.a.l.util is renamed to o.a.l.misc.util
+
+Also, o.a.l.document.InetAddressPoint and o.a.l.document.InetAddressRange are moved to core module.
+
+## Packages in sandbox module are renamed (LUCENE-9319)
+
+Following package names in sandbox module are renamed.
+
+- o.a.l.codecs is renamed to o.a.l.sandbox.codecs
+- o.a.l.document is renamed to o.a.l.sandbox.document
+- o.a.l.search is renamed to o.a.l.sandbox.search
+
+## Backward codecs are renamed (LUCENE-9318)
+
+o.a.l.codecs package in `lucene-backward-codecs` module is renamed to o.a.l.backward_codecs.
+
 ## JapanesePartOfSpeechStopFilterFactory loads default stop tags if "tags" argument not specified (LUCENE-9567)
 
 Previously, JapanesePartOfSpeechStopFilterFactory added no filter if `args` didn't include "tags". Now, it will load 
@@ -327,3 +363,16 @@ used in multi level applications
 Sorting on a numeric field that is indexed with both doc values and points may use an
 optimization to skip non-competitive documents. This optimization relies on the assumption
 that the same data is stored in these points and doc values.
+
+## SortedDocValues no longer extends BinaryDocValues (LUCENE-9796)
+
+SortedDocValues no longer extends BinaryDocValues: SortedDocValues do not have a per-document
+binary value, they have a per-document numeric `ordValue()`. The ordinal can then be dereferenced
+to its binary form with `lookupOrd()`, but it was a performance trap to implement a `binaryValue()`
+on the SortedDocValues api that does this behind-the-scenes on every document.
+
+You can replace calls of `binaryValue()` with `lookupOrd(ordValue())` as a "quick fix", but it is
+better to use the ordinal alone (integer-based datastructures) for per-document access, and only
+call lookupOrd() a few times at the end (e.g. for the hits you want to display). Otherwise, if you
+really don't want per-document ordinals, but instead a per-document `byte[]`, use a BinaryDocValues
+field.

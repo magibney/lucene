@@ -26,14 +26,6 @@ configure(rootProject) {
   dependencies {
     jflex "de.jflex:jflex:${scriptDepVersions['jflex']}"
   }
-
-  task jflex() {
-    description "Regenerate sources for corresponding jflex grammar files."
-    group "generation"
-
-    dependsOn ":lucene:core:jflexStandardTokenizerImpl"
-    dependsOn ":lucene:analysis:common:jflexUAX29URLEmailTokenizerImpl"
-  }
 }
 
 // We always regenerate, no need to declare outputs.
@@ -111,9 +103,27 @@ configure(project(":lucene:core")) {
       )
     }
   }
+
+  regenerate.dependsOn jflexStandardTokenizerImpl, "tidy"
 }
 
 configure(project(":lucene:analysis:common")) {
+
+  task jflexWikipediaTokenizerImpl(type: JFlexTask) {
+    description "Regenerate WikipediaTokenizerImpl.java"
+    group "generation"
+
+    jflexFile = file('src/java/org/apache/lucene/analysis/wikipedia/WikipediaTokenizerImpl.jflex')
+    skeleton = project(":lucene:core").file("src/data/jflex/skeleton.default")
+  }
+
+  task jflexClassicTokenizerImpl(type: JFlexTask) {
+    description "Regenerate ClassicTokenizerImpl.java"
+    group "generation"
+
+    jflexFile = file('src/java/org/apache/lucene/analysis/classic/ClassicTokenizerImpl.jflex')
+    skeleton = project(":lucene:core").file("src/data/jflex/skeleton.default")
+  }
 
   task jflexUAX29URLEmailTokenizerImpl(type: JFlexTask) {
     description "Regenerate UAX29URLEmailTokenizerImpl.java"
@@ -124,7 +134,7 @@ configure(project(":lucene:analysis:common")) {
     heapSize = "12g"
 
     doFirst {
-      logger.lifecycle("Regenerating UAX29URLEmailTokenizerImpl. This may take a long time (and requires tons of memory).")
+      logger.lifecycle("Regenerating UAX29URLEmailTokenizerImpl. This may take a long time (and requires ${heapSize} of memory!).")
     }
 
     doLast {
@@ -166,4 +176,10 @@ configure(project(":lucene:analysis:common")) {
       )
     }
   }
+
+  regenerate.dependsOn jflexUAX29URLEmailTokenizerImpl,
+          jflexHTMLStripCharFilter,
+          jflexClassicTokenizerImpl,
+          jflexWikipediaTokenizerImpl,
+          "tidy"
 }

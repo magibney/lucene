@@ -15,7 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fractions import gcd
+try:
+  # python 3.9+
+  from math import gcd
+except ImportError:
+  # old python
+  from fractions import gcd
 
 """Code generation for bulk operations"""
 
@@ -56,11 +61,13 @@ FOOTER = """
    * For every number of bits per value, there is a minimum number of
    * blocks (b) / values (v) you need to write in order to reach the next block
    * boundary:
+   * <pre>
    *  - 16 bits per value -&gt; b=2, v=1
    *  - 24 bits per value -&gt; b=3, v=1
    *  - 50 bits per value -&gt; b=25, v=4
    *  - 63 bits per value -&gt; b=63, v=8
    *  - ...
+   * </pre>
    *
    * A bulk read consists in copying <code>iterations*v</code> values that are
    * contained in <code>iterations*b</code> blocks into a <code>long[]</code>
