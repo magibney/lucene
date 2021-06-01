@@ -50,11 +50,13 @@ import java.util.zip.ZipInputStream;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.VectorFormat;
 import org.apache.lucene.codecs.asserting.AssertingCodec;
 import org.apache.lucene.codecs.blockterms.LuceneFixedGap;
 import org.apache.lucene.codecs.blocktreeords.BlockTreeOrdsPostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90Codec;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
+import org.apache.lucene.codecs.lucene90.Lucene90HnswVectorFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90PostingsFormat;
 import org.apache.lucene.codecs.perfield.PerFieldDocValuesFormat;
 import org.apache.lucene.codecs.perfield.PerFieldPostingsFormat;
@@ -70,7 +72,6 @@ import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
@@ -82,7 +83,6 @@ import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.MergeScheduler;
 import org.apache.lucene.index.MultiTerms;
 import org.apache.lucene.index.PostingsEnum;
-import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.SlowCodecReaderWrapper;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -181,7 +181,9 @@ public final class TestUtil {
         try {
           iterator.remove();
           throw new AssertionError("broken iterator (supports remove): " + iterator);
-        } catch (UnsupportedOperationException expected) {
+        } catch (
+            @SuppressWarnings("unused")
+            UnsupportedOperationException expected) {
           // ok
         }
       }
@@ -190,7 +192,9 @@ public final class TestUtil {
     try {
       iterator.next();
       throw new AssertionError("broken iterator (allows next() when hasNext==false) " + iterator);
-    } catch (NoSuchElementException expected) {
+    } catch (
+        @SuppressWarnings("unused")
+        NoSuchElementException expected) {
       // ok
     }
   }
@@ -212,14 +216,18 @@ public final class TestUtil {
       try {
         iterator.remove();
         throw new AssertionError("broken iterator (supports remove): " + iterator);
-      } catch (UnsupportedOperationException expected) {
+      } catch (
+          @SuppressWarnings("unused")
+          UnsupportedOperationException expected) {
         // ok
       }
     }
     try {
       iterator.next();
       throw new AssertionError("broken iterator (allows next() when hasNext==false) " + iterator);
-    } catch (NoSuchElementException expected) {
+    } catch (
+        @SuppressWarnings("unused")
+        NoSuchElementException expected) {
       // ok
     }
   }
@@ -249,7 +257,9 @@ public final class TestUtil {
       try {
         coll.remove(coll.iterator().next());
         throw new AssertionError("broken collection (supports remove): " + coll);
-      } catch (UnsupportedOperationException e) {
+      } catch (
+          @SuppressWarnings("unused")
+          UnsupportedOperationException e) {
         // ok
       }
     }
@@ -257,14 +267,18 @@ public final class TestUtil {
     try {
       coll.add(null);
       throw new AssertionError("broken collection (supports add): " + coll);
-    } catch (UnsupportedOperationException e) {
+    } catch (
+        @SuppressWarnings("unused")
+        UnsupportedOperationException e) {
       // ok
     }
 
     try {
       coll.addAll(Collections.singleton(null));
       throw new AssertionError("broken collection (supports addAll): " + coll);
-    } catch (UnsupportedOperationException e) {
+    } catch (
+        @SuppressWarnings("unused")
+        UnsupportedOperationException e) {
       // ok
     }
 
@@ -359,16 +373,6 @@ public final class TestUtil {
 
     if (LuceneTestCase.INFOSTREAM) {
       System.out.println(bos.toString(IOUtils.UTF_8));
-    }
-
-    LeafReader unwrapped = FilterLeafReader.unwrap(reader);
-    if (unwrapped instanceof SegmentReader) {
-      SegmentReader sr = (SegmentReader) unwrapped;
-      long bytesUsed = sr.ramBytesUsed();
-      if (sr.ramBytesUsed() < 0) {
-        throw new IllegalStateException("invalid ramBytesUsed for reader: " + bytesUsed);
-      }
-      assert Accountables.toString(sr) != null;
     }
 
     // FieldInfos should be cached at the reader and always return the same instance
@@ -1292,6 +1296,13 @@ public final class TestUtil {
     return true;
   }
 
+  /**
+   * Returns the actual default vector format (e.g. LuceneMNVectorFormat for this version of Lucene.
+   */
+  public static VectorFormat getDefaultVectorFormat() {
+    return new Lucene90HnswVectorFormat();
+  }
+
   public static boolean anyFilesExceptWriteLock(Directory dir) throws IOException {
     String[] files = dir.listAll();
     if (files.length > 1 || (files.length == 1 && !files[0].equals("write.lock"))) {
@@ -1403,6 +1414,9 @@ public final class TestUtil {
           case SORTED:
             field2 = new SortedDocValuesField(field1.name(), field1.binaryValue());
             break;
+          case NONE:
+          case SORTED_SET:
+          case SORTED_NUMERIC:
           default:
             throw new IllegalStateException("unknown Type: " + dvType);
         }
@@ -1512,7 +1526,9 @@ public final class TestUtil {
         // ignore bugs in Sun's regex impl
         try {
           replacement = p.matcher(nonBmpString).replaceAll("_");
-        } catch (StringIndexOutOfBoundsException jdkBug) {
+        } catch (
+            @SuppressWarnings("unused")
+            StringIndexOutOfBoundsException jdkBug) {
           System.out.println("WARNING: your jdk is buggy!");
           System.out.println(
               "Pattern.compile(\""
@@ -1524,7 +1540,9 @@ public final class TestUtil {
         if (replacement != null && UnicodeUtil.validUTF16String(replacement)) {
           return p;
         }
-      } catch (PatternSyntaxException ignored) {
+      } catch (
+          @SuppressWarnings("unused")
+          PatternSyntaxException ignored) {
         // Loop trying until we hit something that compiles.
       }
     }
@@ -1614,7 +1632,7 @@ public final class TestUtil {
     } else {
       try {
         return br.utf8ToString() + " " + br.toString();
-      } catch (AssertionError | IllegalArgumentException t) {
+      } catch (@SuppressWarnings("unused") AssertionError | IllegalArgumentException t) {
         // If BytesRef isn't actually UTF8, or it's eg a
         // prefix of UTF8 that ends mid-unicode-char, we
         // fallback to hex:
