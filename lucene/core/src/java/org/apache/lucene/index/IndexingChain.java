@@ -733,14 +733,12 @@ final class IndexingChain implements Accountable {
         pf.invert(docID, field, false);
       }
     } else {
-      verifyUnIndexedFieldType(fieldName, fieldType);
       DocValuesType tokenDVType = fieldType.tokenDocValuesType();
       switch (tokenDVType) {
         case NONE:
           break;
         case SORTED_SET:
-          fp = getOrAddField(fieldName, fieldType, false);
-          fp.tokenizedDocValuesOnly(docID, field);
+          pf.tokenizedDocValuesOnly(docID, field);
           break;
         default:
           throw new UnsupportedOperationException("unsupported tokenDocValuesType: \""+tokenDVType+"\"; supported types: "+SUPPORTED_TOKEN_DV_TYPES);
@@ -1015,73 +1013,6 @@ final class IndexingChain implements Accountable {
     return fp;
   }
 
-  /**
-   * Returns a previously created {@link PerField}, absorbing the type information from {@link
-   * FieldType}, and creates a new {@link PerField} if this field name wasn't seen yet.
-   */
-  private PerField getOrAddField(String name, IndexableFieldType fieldType, boolean invert) {
-
-    // Make sure we have a PerField allocated
-    final int hashPos = name.hashCode() & hashMask;
-    PerField fp = fieldHash[hashPos];
-    while (fp != null && !fp.fieldInfo.name.equals(name)) {
-      fp = fp.next;
-    }
-
-    if (fp == null) {
-      // First time we are seeing this field in this segment
-
-      FieldInfo fi = fieldInfos.getOrAdd(name);
-      initIndexOptions(fi, fieldType.indexOptions());
-      Map<String, String> attributes = fieldType.getAttributes();
-      if (attributes != null) {
-        attributes.forEach((k, v) -> fi.putAttribute(k, v));
-      }
-
-      fp =
-          new PerField(
-              indexCreatedVersionMajor,
-              fi,
-              invert,
-              indexWriterConfig.getSimilarity(),
-              indexWriterConfig.getInfoStream(),
-              indexWriterConfig.getAnalyzer());
-      fp.next = fieldHash[hashPos];
-      fieldHash[hashPos] = fp;
-      totalFieldCount++;
-
-      // At most 50% load factor:
-      if (totalFieldCount >= fieldHash.length / 2) {
-        rehash();
-      }
-
-      if (totalFieldCount > fields.length) {
-        PerField[] newFields =
-            new PerField
-                [ArrayUtil.oversize(totalFieldCount, RamUsageEstimator.NUM_BYTES_OBJECT_REF)];
-        System.arraycopy(fields, 0, newFields, 0, fields.length);
-        fields = newFields;
-      }
-
-    } else if (invert && fp.invertState == null) {
-      initIndexOptions(fp.fieldInfo, fieldType.indexOptions());
-      fp.setInvertState();
-    }
-
-    return fp;
-  }
-
-  private void initIndexOptions(FieldInfo info, IndexOptions indexOptions) {
-    // Messy: must set this here because e.g. FreqProxTermsWriterPerField looks at the initial
-    // IndexOptions to decide what arrays it must create).
-    assert info.getIndexOptions() == IndexOptions.NONE;
-    // This is the first time we are seeing this field indexed, so we now
-    // record the index options so that any future attempt to (illegally)
-    // change the index options of this field, will throw an IllegalArgExc:
-    fieldInfos.globalFieldNumbers.setIndexOptions(info.number, info.name, indexOptions);
-    info.setIndexOptions(indexOptions);
-  }
-
   private static final EnumSet<DocValuesType> SUPPORTED_TOKEN_DV_TYPES = EnumSet.of(DocValuesType.NONE, DocValuesType.SORTED_SET);
 
   @Override
@@ -1251,15 +1182,8 @@ final class IndexingChain implements Accountable {
 
       IndexableFieldType fieldType = field.fieldType();
 
-      IndexOptions indexOptions = fieldType.indexOptions();
-      fieldInfo.setIndexOptions(indexOptions);
-
-      if (fieldType.omitNorms()) {
-        fieldInfo.setOmitsNorms();
-      }
-
       final boolean analyzed = fieldType.tokenized() && analyzer != null;
-      final DocValuesType tokenDVType = field.fieldType().tokenDocValuesType();
+      final DocValuesType tokenDVType = fieldType.tokenDocValuesType();
       switch (tokenDVType) {
         case NONE:
           break;
