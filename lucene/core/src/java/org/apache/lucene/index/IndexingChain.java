@@ -826,8 +826,9 @@ final class IndexingChain implements Accountable {
       // TODO: should this be checked when a fieldType is created?
       verifyUnIndexedFieldType(fieldName, fieldType);
     }
-    if (fieldType.docValuesType() != DocValuesType.NONE) {
-      schema.setDocValues(fieldType.docValuesType(), -1);
+    DocValuesType dvType = fieldType.docValuesType();
+    if (dvType != DocValuesType.NONE || (dvType = fieldType.tokenDocValuesType()) != DocValuesType.NONE) {
+      schema.setDocValues(dvType, -1);
     }
     if (fieldType.pointDimensionCount() != 0) {
       schema.setPoints(
