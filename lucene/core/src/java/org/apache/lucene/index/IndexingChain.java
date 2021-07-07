@@ -743,6 +743,7 @@ final class IndexingChain implements Accountable {
         case SORTED_SET:
           pf.tokenizedDocValuesOnly(docID, field);
           break;
+        //$CASES-OMITTED$
         default:
           throw new UnsupportedOperationException("unsupported tokenDocValuesType: \""+tokenDVType+"\"; supported types: "+SUPPORTED_TOKEN_DV_TYPES);
       }
@@ -1196,6 +1197,7 @@ final class IndexingChain implements Accountable {
             tokenizedDVField = new SortedSetDocValuesField(field.name(), new BytesRef(BytesRef.EMPTY_BYTES));
           }
           break;
+        //$CASES-OMITTED$
         default:
           throw new UnsupportedOperationException("unsupported tokenDocValuesType: \""+tokenDVType+"\"; supported types: "+SUPPORTED_TOKEN_DV_TYPES);
       }
