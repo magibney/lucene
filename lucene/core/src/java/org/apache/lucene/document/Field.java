@@ -238,7 +238,9 @@ public class Field implements IndexableField {
     if (type == null) {
       throw new IllegalArgumentException("type must not be null");
     }
-    if (!type.stored() && type.indexOptions() == IndexOptions.NONE && type.tokenDocValuesType() == DocValuesType.NONE) {
+    if (!type.stored()
+        && type.indexOptions() == IndexOptions.NONE
+        && type.tokenDocValuesType() == DocValuesType.NONE) {
       throw new IllegalArgumentException(
           "it doesn't make sense to have a field that is neither indexed nor stored");
     }
@@ -452,7 +454,8 @@ public class Field implements IndexableField {
 
   @Override
   public TokenStream tokenStream(Analyzer analyzer, TokenStream reuse) {
-    if (fieldType().indexOptions() == IndexOptions.NONE && fieldType().tokenDocValuesType() == DocValuesType.NONE) {
+    if (fieldType().indexOptions() == IndexOptions.NONE
+        && fieldType().tokenDocValuesType() == DocValuesType.NONE) {
       // Not indexed
       return null;
     }

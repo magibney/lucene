@@ -20,8 +20,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -743,9 +743,13 @@ final class IndexingChain implements Accountable {
         case SORTED_SET:
           pf.tokenizedDocValuesOnly(docID, field);
           break;
-        //$CASES-OMITTED$
+          // $CASES-OMITTED$
         default:
-          throw new UnsupportedOperationException("unsupported tokenDocValuesType: \""+tokenDVType+"\"; supported types: "+SUPPORTED_TOKEN_DV_TYPES);
+          throw new UnsupportedOperationException(
+              "unsupported tokenDocValuesType: \""
+                  + tokenDVType
+                  + "\"; supported types: "
+                  + SUPPORTED_TOKEN_DV_TYPES);
       }
     }
 
@@ -831,7 +835,8 @@ final class IndexingChain implements Accountable {
       verifyUnIndexedFieldType(fieldName, fieldType);
     }
     DocValuesType dvType = fieldType.docValuesType();
-    if (dvType != DocValuesType.NONE || (dvType = fieldType.tokenDocValuesType()) != DocValuesType.NONE) {
+    if (dvType != DocValuesType.NONE
+        || (dvType = fieldType.tokenDocValuesType()) != DocValuesType.NONE) {
       schema.setDocValues(dvType, -1);
     }
     if (fieldType.pointDimensionCount() != 0) {
@@ -1018,7 +1023,8 @@ final class IndexingChain implements Accountable {
     return fp;
   }
 
-  private static final EnumSet<DocValuesType> SUPPORTED_TOKEN_DV_TYPES = EnumSet.of(DocValuesType.NONE, DocValuesType.SORTED_SET);
+  private static final EnumSet<DocValuesType> SUPPORTED_TOKEN_DV_TYPES =
+      EnumSet.of(DocValuesType.NONE, DocValuesType.SORTED_SET);
 
   @Override
   public long ramBytesUsed() {
@@ -1138,13 +1144,15 @@ final class IndexingChain implements Accountable {
     }
 
     public void tokenizedDocValuesOnly(int docID, IndexableField field) throws IOException {
-      // nocommit: this code is derived from (and is largely identical to) the code in invert(int, IndexableField, boolean).
+      // nocommit: this code is derived from (and is largely identical to) the code in invert(int,
+      // IndexableField, boolean).
       // nocommit: consider refactoring to remove redundancy?
       final String fieldName = field.name();
 
       if (tokenizedDVField == null) {
         // NOTE: there is only one supported tokenizedDVType: SORTED_SET
-        tokenizedDVField = new SortedSetDocValuesField(fieldName, new BytesRef(BytesRef.EMPTY_BYTES));
+        tokenizedDVField =
+            new SortedSetDocValuesField(fieldName, new BytesRef(BytesRef.EMPTY_BYTES));
       }
 
       /*
@@ -1170,7 +1178,8 @@ final class IndexingChain implements Accountable {
         succeededInProcessingField = true;
       } finally {
         if (!succeededInProcessingField && infoStream.isEnabled("DW")) {
-          infoStream.message("DW", "An exception was thrown while processing field " + fieldInfo.name);
+          infoStream.message(
+              "DW", "An exception was thrown while processing field " + fieldInfo.name);
         }
       }
     }
@@ -1194,12 +1203,17 @@ final class IndexingChain implements Accountable {
           break;
         case SORTED_SET:
           if (tokenizedDVField == null) {
-            tokenizedDVField = new SortedSetDocValuesField(field.name(), new BytesRef(BytesRef.EMPTY_BYTES));
+            tokenizedDVField =
+                new SortedSetDocValuesField(field.name(), new BytesRef(BytesRef.EMPTY_BYTES));
           }
           break;
-        //$CASES-OMITTED$
+          // $CASES-OMITTED$
         default:
-          throw new UnsupportedOperationException("unsupported tokenDocValuesType: \""+tokenDVType+"\"; supported types: "+SUPPORTED_TOKEN_DV_TYPES);
+          throw new UnsupportedOperationException(
+              "unsupported tokenDocValuesType: \""
+                  + tokenDVType
+                  + "\"; supported types: "
+                  + SUPPORTED_TOKEN_DV_TYPES);
       }
 
       /*
@@ -1302,7 +1316,7 @@ final class IndexingChain implements Accountable {
               // NOTE: currently only supports SORTED_SET
               tokenizedDVField.setBytesValue(term);
               indexDocValue(docID, this, tokenDVType, tokenizedDVField);
-             }
+            }
           } catch (MaxBytesLengthExceededException e) {
             byte[] prefix = new byte[30];
             BytesRef bigTerm = invertState.termAttribute.getBytesRef();

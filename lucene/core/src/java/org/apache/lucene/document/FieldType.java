@@ -508,8 +508,9 @@ public class FieldType implements IndexableFieldType {
 
   /**
    * {@inheritDoc}
-   * <p>
-   * The default is <code>NONE</code> (no docValues)
+   *
+   * <p>The default is <code>NONE</code> (no docValues)
+   *
    * @see #setTokenDocValuesType(DocValuesType)
    */
   @Override
@@ -519,9 +520,9 @@ public class FieldType implements IndexableFieldType {
 
   /**
    * Sets the field's DocValuesType
+   *
    * @param type per-token DocValues type, or NONE if no per-token DocValues should be stored.
-   * @throws IllegalStateException if this FieldType is frozen against
-   *         future modifications.
+   * @throws IllegalStateException if this FieldType is frozen against future modifications.
    * @see #tokenDocValuesType()
    */
   public void setTokenDocValuesType(DocValuesType type) {

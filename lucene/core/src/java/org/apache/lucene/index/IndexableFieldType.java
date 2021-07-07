@@ -87,8 +87,8 @@ public interface IndexableFieldType {
   DocValuesType docValuesType();
 
   /**
-   * DocValues {@link DocValuesType}: how the field's analyzed token values will be indexed
-   * into docValues.
+   * DocValues {@link DocValuesType}: how the field's analyzed token values will be indexed into
+   * docValues.
    */
   DocValuesType tokenDocValuesType();
 
