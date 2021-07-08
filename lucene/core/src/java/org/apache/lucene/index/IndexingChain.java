@@ -1143,10 +1143,11 @@ final class IndexingChain implements Accountable {
       termsHashPerField.finish();
     }
 
-    public void tokenizedDocValuesOnly(int docID, IndexableField field) throws IOException {
-      // nocommit: this code is derived from (and is largely identical to) the code in invert(int,
-      // IndexableField, boolean).
-      // nocommit: consider refactoring to remove redundancy?
+    /**
+     * NOTE: this code is derived from (and is largely identical to) the code in {@link #invert(int,
+     * IndexableField, boolean)}. TODO: Consider refactoring to remove redundancy?
+     */
+    private void tokenizedDocValuesOnly(int docID, IndexableField field) throws IOException {
       final String fieldName = field.name();
 
       if (tokenizedDVField == null) {

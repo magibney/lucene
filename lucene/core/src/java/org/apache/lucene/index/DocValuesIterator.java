@@ -19,10 +19,10 @@ package org.apache.lucene.index;
 import java.io.IOException;
 import org.apache.lucene.search.DocIdSetIterator;
 
-/** nocommit: flesh this out since we made this class public */
+/** TODO: flesh this out since we made this class public */
 public abstract class DocValuesIterator extends DocIdSetIterator {
 
-  /** nocommit: flesh this out since we made this class public */
+  /** TODO: flesh this out since we made this class public */
   protected DocValuesIterator() {
     // no-op
   }
