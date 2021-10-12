@@ -32,16 +32,16 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.codecs.KnnVectorsFormat;
+import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.NormsConsumer;
 import org.apache.lucene.codecs.NormsFormat;
 import org.apache.lucene.codecs.NormsProducer;
 import org.apache.lucene.codecs.PointsFormat;
 import org.apache.lucene.codecs.PointsWriter;
-import org.apache.lucene.codecs.VectorFormat;
-import org.apache.lucene.codecs.VectorWriter;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.KnnVectorField;
 import org.apache.lucene.document.SortedSetDocValuesField;
-import org.apache.lucene.document.VectorField;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -433,7 +433,7 @@ final class IndexingChain implements Accountable {
 
   /** Writes all buffered vectors. */
   private void writeVectors(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException {
-    VectorWriter vectorWriter = null;
+    KnnVectorsWriter knnVectorsWriter = null;
     boolean success = false;
     try {
       for (int i = 0; i < fieldHash.length; i++) {
@@ -449,19 +449,19 @@ final class IndexingChain implements Accountable {
                       + perField.fieldInfo.name
                       + "\" has no vectors but wrote them");
             }
-            if (vectorWriter == null) {
+            if (knnVectorsWriter == null) {
               // lazy init
-              VectorFormat fmt = state.segmentInfo.getCodec().vectorFormat();
+              KnnVectorsFormat fmt = state.segmentInfo.getCodec().knnVectorsFormat();
               if (fmt == null) {
                 throw new IllegalStateException(
                     "field=\""
                         + perField.fieldInfo.name
                         + "\" was indexed as vectors but codec does not support vectors");
               }
-              vectorWriter = fmt.fieldsWriter(state);
+              knnVectorsWriter = fmt.fieldsWriter(state);
             }
 
-            perField.vectorValuesWriter.flush(sortMap, vectorWriter);
+            perField.vectorValuesWriter.flush(sortMap, knnVectorsWriter);
             perField.vectorValuesWriter = null;
           } else if (perField.fieldInfo != null && perField.fieldInfo.getVectorDimension() != 0) {
             // BUG
@@ -475,15 +475,15 @@ final class IndexingChain implements Accountable {
           perField = perField.next;
         }
       }
-      if (vectorWriter != null) {
-        vectorWriter.finish();
+      if (knnVectorsWriter != null) {
+        knnVectorsWriter.finish();
       }
       success = true;
     } finally {
       if (success) {
-        IOUtils.close(vectorWriter);
+        IOUtils.close(knnVectorsWriter);
       } else {
-        IOUtils.closeWhileHandlingException(vectorWriter);
+        IOUtils.closeWhileHandlingException(knnVectorsWriter);
       }
     }
   }
@@ -534,7 +534,7 @@ final class IndexingChain implements Accountable {
     int newHashSize = (fieldHash.length * 2);
     assert newHashSize > fieldHash.length;
 
-    PerField newHashArray[] = new PerField[newHashSize];
+    PerField[] newHashArray = new PerField[newHashSize];
 
     // Rehash
     int newHashMask = newHashSize - 1;
@@ -780,7 +780,7 @@ final class IndexingChain implements Accountable {
       pf.pointValuesWriter.addPackedValue(docID, field.binaryValue());
     }
     if (fieldType.vectorDimension() != 0) {
-      pf.vectorValuesWriter.addValue(docID, ((VectorField) field).vectorValue());
+      pf.vectorValuesWriter.addValue(docID, ((KnnVectorField) field).vectorValue());
     }
     return indexedField;
   }
@@ -1423,8 +1423,7 @@ final class IndexingChain implements Accountable {
     private int pointIndexDimensionCount = 0;
     private int pointNumBytes = 0;
     private int vectorDimension = 0;
-    private VectorValues.SimilarityFunction vectorSimilarityFunction =
-        VectorValues.SimilarityFunction.NONE;
+    private VectorSimilarityFunction vectorSimilarityFunction = VectorSimilarityFunction.EUCLIDEAN;
 
     private static String errMsg =
         "Inconsistency of field data structures across documents for field ";
@@ -1433,10 +1432,38 @@ final class IndexingChain implements Accountable {
       this.name = name;
     }
 
-    private void assertSame(boolean same) {
-      if (same == false) {
-        throw new IllegalArgumentException(errMsg + "[" + name + "] of doc [" + docID + "].");
+    private void assertSame(String label, boolean expected, boolean given) {
+      if (expected != given) {
+        raiseNotSame(label, expected, given);
       }
+    }
+
+    private void assertSame(String label, int expected, int given) {
+      if (expected != given) {
+        raiseNotSame(label, expected, given);
+      }
+    }
+
+    private void assertSame(String label, Object expected, Object given) {
+      if (expected != given) {
+        raiseNotSame(label, expected, given);
+      }
+    }
+
+    private void raiseNotSame(String label, Object expected, Object given) {
+      throw new IllegalArgumentException(
+          errMsg
+              + "["
+              + name
+              + "] of doc ["
+              + docID
+              + "]. "
+              + label
+              + ": expected '"
+              + expected
+              + "', but it has '"
+              + given
+              + "'.");
     }
 
     void updateAttributes(Map<String, String> attrs) {
@@ -1450,10 +1477,9 @@ final class IndexingChain implements Accountable {
         omitNorms = newOmitNorms;
         storeTermVector = newStoreTermVector;
       } else {
-        assertSame(
-            indexOptions == newIndexOptions
-                && omitNorms == newOmitNorms
-                && storeTermVector == newStoreTermVector);
+        assertSame("index options", indexOptions, newIndexOptions);
+        assertSame("omit norms", omitNorms, newOmitNorms);
+        assertSame("store term vector", storeTermVector, newStoreTermVector);
       }
     }
 
@@ -1462,7 +1488,8 @@ final class IndexingChain implements Accountable {
         this.docValuesType = newDocValuesType;
         this.dvGen = newDvGen;
       } else {
-        assertSame(docValuesType == newDocValuesType && dvGen == newDvGen);
+        assertSame("doc values type", docValuesType, newDocValuesType);
+        assertSame("doc values generation", dvGen, newDvGen);
       }
     }
 
@@ -1472,19 +1499,19 @@ final class IndexingChain implements Accountable {
         pointIndexDimensionCount = indexDimensionCount;
         pointNumBytes = numBytes;
       } else {
-        assertSame(
-            pointDimensionCount == dimensionCount
-                && pointIndexDimensionCount == indexDimensionCount
-                && pointNumBytes == numBytes);
+        assertSame("point dimension", pointDimensionCount, dimensionCount);
+        assertSame("point index dimension", pointIndexDimensionCount, indexDimensionCount);
+        assertSame("point num bytes", pointNumBytes, numBytes);
       }
     }
 
-    void setVectors(VectorValues.SimilarityFunction similarityFunction, int dimension) {
-      if (vectorSimilarityFunction == VectorValues.SimilarityFunction.NONE) {
+    void setVectors(VectorSimilarityFunction similarityFunction, int dimension) {
+      if (vectorDimension == 0) {
         this.vectorDimension = dimension;
         this.vectorSimilarityFunction = similarityFunction;
       } else {
-        assertSame(vectorSimilarityFunction == similarityFunction && vectorDimension == dimension);
+        assertSame("vector similarity function", vectorSimilarityFunction, similarityFunction);
+        assertSame("vector dimension", vectorDimension, dimension);
       }
     }
 
@@ -1499,21 +1526,22 @@ final class IndexingChain implements Accountable {
       pointIndexDimensionCount = 0;
       pointNumBytes = 0;
       vectorDimension = 0;
-      vectorSimilarityFunction = VectorValues.SimilarityFunction.NONE;
+      vectorSimilarityFunction = VectorSimilarityFunction.EUCLIDEAN;
     }
 
     void assertSameSchema(FieldInfo fi) {
+      assertSame("index options", fi.getIndexOptions(), indexOptions);
+      assertSame("omit norms", fi.omitsNorms(), omitNorms);
+      assertSame("store term vector", fi.hasVectors(), storeTermVector);
+      assertSame("doc values type", fi.getDocValuesType(), docValuesType);
+      assertSame("doc values generation", fi.getDocValuesGen(), dvGen);
       assertSame(
-          indexOptions == fi.getIndexOptions()
-              && omitNorms == fi.omitsNorms()
-              && storeTermVector == fi.hasVectors()
-              && docValuesType == fi.getDocValuesType()
-              && dvGen == fi.getDocValuesGen()
-              && pointDimensionCount == fi.getPointDimensionCount()
-              && pointIndexDimensionCount == fi.getPointIndexDimensionCount()
-              && pointNumBytes == fi.getPointNumBytes()
-              && vectorDimension == fi.getVectorDimension()
-              && vectorSimilarityFunction == fi.getVectorSimilarityFunction());
+          "vector similarity function", fi.getVectorSimilarityFunction(), vectorSimilarityFunction);
+      assertSame("vector dimension", fi.getVectorDimension(), vectorDimension);
+      assertSame("point dimension", fi.getPointDimensionCount(), pointDimensionCount);
+      assertSame(
+          "point index dimension", fi.getPointIndexDimensionCount(), pointIndexDimensionCount);
+      assertSame("point num bytes", fi.getPointNumBytes(), pointNumBytes);
     }
   }
 }
